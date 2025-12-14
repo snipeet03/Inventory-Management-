@@ -1,0 +1,209 @@
+{% extends "inventory_management/base.html" %}
+{% load static %}
+
+{% block title %}Assembly Form{% endblock %}
+
+{% block content %}
+<!-- Bootstrap CSS CDN -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Y9A7xIrRw5kP9cs68UKdfUYZHyhSEx7iJ1Lmz6ZxJlZ5k7r9Z3h5mq9tvT9l1qfa" crossorigin="anonymous">
+
+<style>
+  /* Container for chart with border, shadow, and scroll */
+  #chart-wrapper {
+    width: 90vw;
+    max-width: 1200px;
+    margin: 1.5rem auto 2rem auto;
+    overflow-x: auto;
+    border: 1px solid #ddd;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    padding: 1rem 0.5rem 0.75rem 0.5rem;
+    border-radius: 8px;
+    background-color: #fafafa;
+  }
+
+  /* Plotly graph width for horizontal scrolling */
+  #chart-wrapper > div {
+    min-width: 5000px; /* doubled width */
+  }
+
+  /* Heading styles */
+  #chart-header {
+    text-align: center;
+    margin-top: 2rem;
+    margin-bottom: 0.25rem;
+    font-weight: 700;
+    color: #1B263B;  /* deep navy blue */
+    font-size: 2rem;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+  #chart-subtitle {
+    text-align: center;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    color: #4A69BD; /* medium slate blue */
+    font-size: 1rem;
+    font-style: italic;
+  }
+
+  /* Explanatory text below the chart */
+  #chart-info {
+    text-align: center;
+    font-size: 0.9rem;
+    color: #5D6D7E; /* slate gray */
+    margin-bottom: 2rem;
+  }
+
+  /* Table container styling */
+  #table-container {
+    max-width: 700px;
+  }
+</style>
+
+<!-- Chart heading -->
+<div id="chart-header">Assembly Quantity Overview</div>
+<div id="chart-subtitle">Click on any BAP bar below to see detailed alpha numbers and withdraw options</div>
+
+<!-- Chart container with scroll -->
+<div id="chart-wrapper" class="mb-4" aria-label="Bar chart of quantities per BAP">
+    {{ plot_div|safe }}
+</div>
+
+<div id="chart-info">Use the horizontal scrollbar below the chart to explore all BAP entries.</div>
+
+<!-- Table container (hidden initially) -->
+<div id="table-container" class="card shadow mx-auto" style="display:none;">
+    <div class="card-body">
+        <h5 class="card-title text-center mb-4">Assembly Withdraw</h5>
+        <form method="post" id="withdraw-form" class="needs-validation" novalidate>
+            {% csrf_token %}
+            <table class="table table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>Alpha Number</th>
+                        <th>Quantity Present</th>
+                        <th>Withdraw Quantity</th>  <!-- NEW COLUMN -->
+                        <th>Select</th>
+                    </tr>
+                </thead>
+                <tbody id="alpha-table-body">
+                    <!-- JS dynamically fills this -->
+                </tbody>
+            </table>
+            <button type="submit" class="btn btn-primary w-100">Withdraw Selected</button>
+        </form>
+    </div>
+</div>
+
+<!-- Bootstrap Confirmation Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-sm rounded-3">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold" id="confirmModalLabel">Confirm Withdrawal</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body fs-5 text-center py-4">
+        Are you sure you want to withdraw the selected items?
+      </div>
+      <div class="modal-footer border-0 justify-content-center">
+        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="confirmBtn" class="btn btn-primary px-4">Yes, Withdraw</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const chart = document.getElementsByClassName("plotly-graph-div")[0];
+    const tableContainer = document.getElementById("table-container");
+    const tableBody = document.getElementById("alpha-table-body");
+    const withdrawForm = document.getElementById("withdraw-form");
+
+    const bapAlphaData = JSON.parse('{{ bap_alpha_data_json|escapejs }}');
+
+    chart.on('plotly_click', function(data) {
+        const bap = data.points[0].x;
+        const alphaList = bapAlphaData[bap] || [];
+
+        tableBody.innerHTML = "";
+
+        if (alphaList.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="4" class="text-center">No alpha numbers found for BAP: ${bap}</td></tr>`;
+        } else {
+            alphaList.forEach(item => {
+                const row = document.createElement('tr');
+
+                // Alpha Number
+                const alphaCell = document.createElement('td');
+                alphaCell.textContent = item.AlphaNumber;
+                row.appendChild(alphaCell);
+
+                // Quantity Present
+                const quantityCell = document.createElement('td');
+                quantityCell.textContent = item.Quantity;
+                row.appendChild(quantityCell);
+
+                // Withdraw Quantity input (new column)
+                const withdrawCell = document.createElement('td');
+                const withdrawInput = document.createElement('input');
+                withdrawInput.type = 'number';
+                withdrawInput.min = 0;
+                withdrawInput.max = item.Quantity;
+                withdrawInput.value = 0;  // default 0
+                withdrawInput.name = `withdraw_qty_${item.AlphaNumber}`;
+                withdrawInput.className = 'form-control';
+
+                // Hide withdraw input if quantity is 0
+                if (item.Quantity === 0) {
+                    withdrawInput.style.display = 'none';
+                }
+
+                withdrawCell.appendChild(withdrawInput);
+                row.appendChild(withdrawCell);
+
+                // Select Checkbox
+                const checkboxCell = document.createElement('td');
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.name = 'selected_alphas';
+                checkbox.value = item.AlphaNumber;
+                checkbox.checked = true;
+                checkboxCell.appendChild(checkbox);
+                row.appendChild(checkboxCell);
+
+                tableBody.appendChild(row);
+            });
+        }
+
+        tableContainer.style.display = "block";
+        tableContainer.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    const confirmModalEl = document.getElementById('confirmModal');
+    const confirmModal = new bootstrap.Modal(confirmModalEl);
+    const confirmBtn = document.getElementById('confirmBtn');
+
+    withdrawForm.addEventListener("submit", function(e) {
+        e.preventDefault();
+        confirmModal.show();
+    });
+
+    confirmBtn.addEventListener("click", function() {
+        confirmModal.hide();
+        withdrawForm.submit();
+    });
+
+    confirmModalEl.addEventListener('keydown', function(event) {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            confirmBtn.click();
+        }
+    });
+});
+</script>
+
+<!-- Bootstrap JS Bundle CDN (includes Popper) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-jjSmVgyd0p3pXB1rRibZUAYoIIyEJq5V/0e1quc6JfX0BwHnFI/jZt5Pqt2GhKxg" crossorigin="anonymous"></script>
+
+{% endblock %}

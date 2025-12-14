@@ -4,13 +4,14 @@ from .import views
 
 urlpatterns = [
     path('', views.startup_view, name='home'),
-    path('login/', views.login_view, name='login'),
     path('adminLogin/', views.admin_login_view, name='adminLogin'),
     path('admin_dashboard/', views.admin_dashboard_view, name='admin_dashboard'),
-    path('add_user/', views.add_user_view, name='add_user'),
-    path('remove_user/', views.remove_user_view, name='remove_user'),
-    path('inventoryhome/', views.inventoryLogin_view, name='inventoryhome'),
-    path('exhardForm/', views.exhardForm_view, name='exhard_form')
+    path('inventoryhome/', views.inventoryhome_view, name='inventoryhome'), 
+    path('assemblyform/', views.assembly_view, name='assemblyform'),
+    path('exhardForm/', views.exhardForm_view, name='exhardForm'),
+    path('download_excel/', views.download_excel, name='download_excel'),
+    path('upload_excel/', views.upload_excel, name='upload_excel'),
+    
 ]
 
 

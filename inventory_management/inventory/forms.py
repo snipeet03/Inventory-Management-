@@ -1,39 +1,21 @@
+from django.forms import ModelForm
 from django import forms
-from .models import ExardProduct #, AssemblyProduct
+from .models import ExardProduct 
 
 
-# class AddProductForm(forms.ModelForm): 
-#     class Meta:
-#         model = ExardProduct
-#         fields = ('alpha_number', 'quantity')
+
+class AddExhardForm(forms.Form):
+    alpha_number = forms.ModelChoiceField(
+        queryset=ExardProduct.objects.all(),
+        label="Alpha Number",
+        widget=forms.Select(attrs={'class': 'select2', 'id': 'id_alpha_number'})
+    )
+    quantity = forms.IntegerField(
+        min_value=1,
+        label="Quantity to Add",
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control bg-white text-dark'
+        })
+    )
 
 
-from django import forms
-from .models import ExardProduct
-
-class AddExhardForm(forms.ModelForm):
-    alpha_number = forms.CharField(max_length=100, label="Alpha Number")    
-    quantity = forms.IntegerField(min_value=1, label="Quantity to Add")
-
-    class Meta:
-        model = ExardProduct
-        fields = ['alpha_number', 'quantity']
-
-
-# class AddAssemblyForm(forms.ModelForm):
-#     alpha_number = forms.ModelChoiceField(max_length=100, label="Alpha Number")
-#     bap_number = forms.CharField(max_length=100, label="BAP Number")
-#     quantity = forms.IntegerField(min_value=1, label="Quantity to Add")
-
-#     class Meta:
-#         model = AssemblyProduct
-#         fields = ['alpha_number', 'bap_number', 'quantity']
-
-
-# from django import forms
-# from .models import ExardProduct
-
-# class AddExhardForm(forms.ModelForm):
-#     class Meta:  
-#         model = ExardProduct
-#         fields = ['alpha_number', 'quantity']
