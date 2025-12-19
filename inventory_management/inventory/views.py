@@ -20,7 +20,7 @@ from django.http import FileResponse, Http404
 import json
 
 
-# Create your views here.
+
 #---- ADMIN ----#
 
 def startup_view(request):
